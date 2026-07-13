@@ -105,8 +105,8 @@ export function Home() {
       {/* Header Controls */}
       <div style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+        {/* Header Tabs */}
+        <div className="scrollable-tabs" style={{ display: 'flex', gap: '25px', marginBottom: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>
           <button 
             onClick={() => setFeedType('latest')}
             style={{
@@ -153,7 +153,7 @@ export function Home() {
 
         {/* Categories Pill */}
         {categories.length > 0 && (
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="scrollable-tabs" style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={() => setSelectedCategory(null)}
               style={{

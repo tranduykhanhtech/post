@@ -251,7 +251,7 @@ export function AdminDashboard() {
         <title>Manage - Gecko Space</title>
       </Helmet>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
-        <div style={{ 
+        <div className="admin-pill-tabs" style={{ 
           display: 'inline-flex', 
           backgroundColor: 'var(--border-color)', 
           padding: '6px', 

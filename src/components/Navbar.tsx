@@ -21,14 +21,14 @@ export function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px', gap: '20px' }}>
-        <Link viewTransition to="/" className="nav-brand" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-color)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+      <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px', gap: '10px' }}>
+        <Link viewTransition to="/" className="nav-brand" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-color)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="/logo.png" alt="Gecko Space Logo" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
-          <span style={{ color: 'var(--accent-color)' }}>Gecko</span> Space
+          <span><span style={{ color: 'var(--accent-color)' }}>Gecko</span><span className="hide-on-mobile"> Space</span></span>
         </Link>
         
         {/* Search Bar */}
-        <form onSubmit={handleSearch} style={{ flexGrow: 1, maxWidth: '400px', display: 'flex', position: 'relative' }}>
+        <form onSubmit={handleSearch} className="nav-search" style={{ flexGrow: 1, maxWidth: '400px', display: 'flex', position: 'relative' }}>
           <input
             type="text"
             placeholder="Search articles..."
@@ -40,7 +40,7 @@ export function Navbar() {
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-light)' }} />
         </form>
 
-        <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexShrink: 0 }}>
+        <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button 
             onClick={() => toggleTheme()} 
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -81,7 +81,7 @@ export function Navbar() {
             </>
           ) : (
             <Link viewTransition to="/login" className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '0.9rem', borderRadius: '20px' }}>
-              <LogIn size={16} /> Login
+              <LogIn size={16} /> <span className="hide-on-mobile">Login</span>
             </Link>
           )}
         </div>

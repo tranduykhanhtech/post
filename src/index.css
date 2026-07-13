@@ -303,3 +303,65 @@ body.zen-mode .navbar { transform: translateY(-100%); transition: transform 0.4s
 body.zen-mode .comments-section { opacity: 0.1; transition: opacity 0.4s; }
 body.zen-mode .comments-section:hover { opacity: 1; }
 
+
+/* =========================================
+   Mobile Responsiveness (@media queries)
+   ========================================= */
+
+@media (max-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+  .container {
+    padding: 0 16px;
+  }
+  .article-title {
+    font-size: 2rem;
+  }
+  .hide-on-mobile {
+    display: none;
+  }
+  .nav-links {
+    gap: 12px;
+  }
+  .scrollable-tabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    justify-content: center;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+  .scrollable-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-pill-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+  }
+  .admin-pill-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .like-share-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .article-content img {
+    width: 100% !important;
+    height: auto !important;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .nav-search {
+    display: none !important;
+  }
+}
+
+
+html, body { overflow-x: hidden; width: 100%; }
+

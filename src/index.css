@@ -153,6 +153,8 @@ a:hover {
 }
 
 .form-control {
+  background-color: var(--bg-card);
+  color: var(--text-color);
   width: 100%;
   padding: 12px;
   border: 1px solid var(--border-color);
@@ -169,6 +171,8 @@ a:hover {
 }
 
 textarea.form-control {
+  background-color: var(--bg-card);
+  color: var(--text-color);
   resize: vertical;
   min-height: 200px;
   line-height: 1.8;
@@ -196,6 +200,8 @@ textarea.form-control {
   line-height: 1.8;
   color: var(--text-color);
   white-space: pre-wrap;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
 }
 
 /* Article List */
@@ -229,6 +235,10 @@ textarea.form-control {
 }
 
 .article-card-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   color: var(--text-light);
   font-size: 1.05rem;
   line-height: 1.6;
@@ -299,9 +309,9 @@ textarea.form-control {
 }
 
 /* Zen Mode */
-body.zen-mode .navbar { transform: translateY(-100%); transition: transform 0.4s ease; }
-body.zen-mode .comments-section { opacity: 0.1; transition: opacity 0.4s; }
-body.zen-mode .comments-section:hover { opacity: 1; }
+body.zen-mode .navbar, body.zen-mode .comments-section, body.zen-mode .like-share-buttons { display: none !important; }
+
+
 
 
 /* =========================================
@@ -309,6 +319,7 @@ body.zen-mode .comments-section:hover { opacity: 1; }
    ========================================= */
 
 @media (max-width: 768px) {
+  .reading-prefs .reading-divider { display: none !important; }
   body {
     font-size: 16px;
   }
@@ -357,6 +368,7 @@ body.zen-mode .comments-section:hover { opacity: 1; }
 
 
 @media (max-width: 768px) {
+  .reading-prefs .reading-divider { display: none !important; }
   .nav-search {
     display: none !important;
   }
@@ -364,4 +376,18 @@ body.zen-mode .comments-section:hover { opacity: 1; }
 
 
 html, body { overflow-x: hidden; width: 100%; }
+
+
+@media (max-width: 768px) {
+  .reading-prefs .reading-divider { display: none !important; }
+  .utility-bar { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+  .reading-prefs { flex-wrap: wrap;
+  .reading-divider { display: none !important; } justify-content: center; padding: 10px !important; gap: 10px !important; }
+}
+
+
+.ql-editor, .ql-editor * { word-break: normal !important; overflow-wrap: break-word !important; }
+
+
+body.zen-mode .back-to-home-wrapper { margin-top: 40px; transition: margin-top 0.3s ease; }
 

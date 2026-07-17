@@ -219,12 +219,10 @@ export function Home() {
                 })}
                 <span style={{ margin: '0 8px' }}>•</span>
                 {calculateReadTime(article.content)} min read
-                <span style={{ margin: '0 8px' }}>•</span>
-                {article.views || 0} views
               </div>
-              <p className="article-card-excerpt">
-                {article.excerpt || stripHtml(article.content).substring(0, 150) + '...'}
-              </p>
+                <p className="article-card-excerpt">
+                  {article.excerpt || stripHtml(article.content.replace(/&nbsp;/g, ' '))}
+                </p>
               </div>
             </article>
           ))}

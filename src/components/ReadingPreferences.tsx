@@ -18,7 +18,7 @@ export function ReadingPreferences({
   setZenMode
 }: ReadingPreferencesProps) {
   return (
-    <div style={{
+    <div className="reading-prefs" style={{
       display: 'inline-flex',
       alignItems: 'center',
       gap: '20px',
@@ -30,7 +30,7 @@ export function ReadingPreferences({
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
     }}>
       {/* Font Size */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="reading-prefs" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button 
           onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', display: 'flex', padding: '4px' }}
@@ -50,10 +50,10 @@ export function ReadingPreferences({
         </button>
       </div>
 
-      <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
+      <div className="reading-prefs" style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
 
       {/* Font Family */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="reading-prefs" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
           onClick={() => setFontFamily('sans')}
           style={{ 
@@ -78,7 +78,7 @@ export function ReadingPreferences({
         </button>
       </div>
 
-      <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
+      <div className="reading-prefs" style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
 
       {/* Zen Mode */}
       <button 

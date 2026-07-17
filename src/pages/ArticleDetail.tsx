@@ -7,12 +7,10 @@ import { LikeButton } from '../components/LikeButton';
 import { ShareButton } from '../components/ShareButton';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { Comments } from '../components/Comments';
-import { Eye } from 'lucide-react';
+
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import { AudioPlayer } from '../components/AudioPlayer';
 import { ReadingPreferences } from '../components/ReadingPreferences';
-import { stripHtmlForSpeech } from '../utils/html';
 
 export function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -64,8 +62,6 @@ export function ArticleDetail() {
         if (error) throw error;
         if (data) {
           setArticle(data);
-          // Increment view counter via RPC (fire and forget)
-          supabase.rpc('increment_view', { article_id: id }).then();
         }
       } catch (error) {
         console.error('Error fetching article:', error);
@@ -122,7 +118,7 @@ export function ArticleDetail() {
         }} 
       />
       <div className="container">
-      <div style={{ marginBottom: '40px' }}>
+      <div className="back-to-home-wrapper" style={{ marginBottom: '40px' }}>
         <Link viewTransition 
           to="/" 
           style={{ 
@@ -164,13 +160,18 @@ export function ArticleDetail() {
           })}
           <span style={{ margin: '0 8px' }}>•</span>
           {calculateReadTime(article.content)} min read
-          <span style={{ margin: '0 8px' }}>•</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <Eye size={14} /> {article.views || 0}
-          </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', marginTop: '30px', marginBottom: '20px' }}>
-          <AudioPlayer text={stripHtmlForSpeech(article.content)} />
+
+        {article.cover_image_url && (
+          <div style={{ marginBottom: '30px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <img 
+              src={article.cover_image_url} 
+              alt={article.title} 
+              style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', display: 'block' }} 
+            />
+          </div>
+        )}
+        <div className="utility-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginTop: '30px', marginBottom: '20px' }}>
           <ReadingPreferences 
             fontSize={fontSize} setFontSize={setFontSize}
             fontFamily={fontFamily} setFontFamily={setFontFamily}
@@ -180,8 +181,8 @@ export function ArticleDetail() {
 
         <div 
           className="article-content ql-editor" 
-          style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === 'serif' ? 'Georgia, serif' : 'inherit', transition: 'font-size 0.3s ease' }}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.content) }} 
+          style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === 'serif' ? 'Georgia, serif' : 'inherit', transition: 'font-size 0.3s ease', wordBreak: 'normal', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.content.replace(/&nbsp;/g, ' ')) }} 
         />
         
         <div className="like-share-buttons" style={{ marginTop: '40px', paddingBottom: '20px', display: 'flex', gap: '15px' }}>

@@ -1,95 +1,125 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase, type Article } from '../lib/supabase';
 import { calculateReadTime } from '../utils/readTime';
 import { stripHtml } from '../utils/html';
-import { Sparkles, Clock, Bookmark } from 'lucide-react';
+import { Sparkles, Clock, Bookmark, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { getCoverPosition, extractBaseUrl } from '../utils/imagePosition';
 
+const PAGE_SIZE = 10;
+
 export function Home() {
   const { user } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  
   const [feedType, setFeedType] = useState<'latest' | 'foryou' | 'saved'>('latest');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
 
+  // 1. Fetch all distinct categories on mount
   useEffect(() => {
-    async function fetchArticles() {
-      try {
-        const { data, error } = await supabase
-          .from('articles')
-          .select('*')
-          .order('created_at', { ascending: false });
+    supabase.from('articles').select('category').then(({ data }) => {
+      if (data) {
+        const cats = new Set<string>();
+        data.forEach(d => {
+          if (d.category) cats.add(d.category);
+        });
+        setCategories(Array.from(cats).sort());
+      }
+    });
+  }, []);
 
-        if (error) throw error;
-        if (data) setArticles(data);
+  // 2. Fetch Articles with Pagination & Filters
+  const loadArticles = async (pageNum: number, reset: boolean = false) => {
+    try {
+      let query = supabase.from('articles').select('*');
 
-        // Fetch bookmarks if logged in
-        if (user) {
-          const { data: bookmarksData } = await supabase
-            .from('bookmarks')
-            .select('article_id')
-            .eq('user_id', user.id);
-          if (bookmarksData) {
-            setBookmarkedIds(bookmarksData.map(b => b.article_id));
+      // Apply Filters
+      if (selectedCategory) {
+        query = query.eq('category', selectedCategory);
+      }
+      if (searchQuery) {
+        query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
+      }
+      if (feedType === 'saved' && user) {
+        const { data: bData } = await supabase.from('bookmarks').select('article_id').eq('user_id', user.id);
+        const bIds = bData ? bData.map(b => b.article_id) : [];
+        if (bIds.length === 0) {
+          if (reset) setArticles([]);
+          setHasMore(false);
+          return;
+        }
+        query = query.in('id', bIds);
+      }
+
+      // Apply Sort
+      // For "foryou", without backend RPC, we just fallback to latest for now, or randomize client-side later.
+      query = query.order('created_at', { ascending: false });
+
+      // Apply Pagination
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data) {
+        if (data.length < PAGE_SIZE) setHasMore(false);
+        else setHasMore(true);
+
+        // If Foryou, shuffle the fetched page
+        if (feedType === 'foryou') {
+          for (let i = data.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [data[i], data[j]] = [data[j], data[i]];
           }
         }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+
+        if (reset) {
+          setArticles(data);
+        } else {
+          setArticles(prev => {
+            const newIds = data.map(d => d.id);
+            const filteredPrev = prev.filter(p => !newIds.includes(p.id));
+            return [...filteredPrev, ...data];
+          });
+        }
       }
+    } catch (err) {
+      console.error('Error fetching data:', err);
     }
+  };
 
-    fetchArticles();
-  }, [user]);
-
-  // Extract unique categories
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    articles.forEach(a => {
-      if (a.category) cats.add(a.category);
-    });
-    return Array.from(cats).sort();
-  }, [articles]);
-
-  // Filter and shuffle
-  const displayedArticles = useMemo(() => {
-    let result = [...articles];
-
-    // 0. Search by query
-    if (searchQuery) {
-      result = result.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || stripHtml(a.content).toLowerCase().includes(searchQuery.toLowerCase()));
+  // Reset and fetch when filters change
+  useEffect(() => {
+    async function fetchInitial() {
+      setLoading(true);
+      setPage(0);
+      setHasMore(true);
+      await loadArticles(0, true);
+      setLoading(false);
     }
+    fetchInitial();
+  }, [searchQuery, selectedCategory, feedType, user]);
 
-    // 1. Filter by category
-    if (selectedCategory) {
-      result = result.filter(a => a.category === selectedCategory);
-    }
+  const handleLoadMore = async () => {
+    setIsFetchingMore(true);
+    const nextPage = page + 1;
+    await loadArticles(nextPage, false);
+    setPage(nextPage);
+    setIsFetchingMore(false);
+  };
 
-    // 2. Sort or Shuffle or Saved
-    if (feedType === 'saved') {
-      result = result.filter(a => bookmarkedIds.includes(a.id));
-    } else if (feedType === 'foryou') {
-      // Fisher-Yates shuffle for random order
-      for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-      }
-    } else {
-      // Latest is already sorted by the database
-      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
-
-    return result;
-  }, [articles, feedType, selectedCategory, searchQuery, bookmarkedIds]);
-
-  if (loading) {
+  if (loading && page === 0) {
     return (
       <div className="container">
         <p className="empty-state">Loading articles...</p>
@@ -187,13 +217,13 @@ export function Home() {
       </div>
 
       {/* Article List */}
-      {displayedArticles.length === 0 ? (
+      {articles.length === 0 ? (
         <div className="empty-state">
           <p>No articles found.</p>
         </div>
       ) : (
         <div className="article-list">
-          {displayedArticles.map((article) => (
+          {articles.map((article) => (
             <article key={article.id} className="article-card" style={{ padding: article.cover_image_url ? 0 : '24px', overflow: 'hidden' }}>
               {article.cover_image_url && (
                 <Link viewTransition to={`/article/${article.id}`}>
@@ -227,6 +257,38 @@ export function Home() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {hasMore && articles.length > 0 && (
+        <div style={{ textAlign: 'center', marginTop: '40px', paddingBottom: '40px' }}>
+          <button 
+            onClick={handleLoadMore}
+            disabled={isFetchingMore}
+            style={{
+              padding: '12px 30px',
+              borderRadius: '25px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-color)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: isFetchingMore ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+            }}
+          >
+            {isFetchingMore ? (
+              <>
+                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                Loading...
+              </>
+            ) : 'Load More'}
+          </button>
         </div>
       )}
     </div>

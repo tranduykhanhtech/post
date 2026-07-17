@@ -37,9 +37,14 @@ export function AdminDashboard() {
 
   // History State
   const [articles, setArticles] = useState<Article[]>([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isFetchingMoreHistory, setIsFetchingMoreHistory] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
+  
+  const HISTORY_PAGE_SIZE = 15;
   
   const navigate = useNavigate();
 
@@ -73,25 +78,54 @@ export function AdminDashboard() {
   }, [title, content, category, coverImage, coverImagePosition, audioUrl, editingId]);
 
   // Fetch History
-  const fetchHistory = async () => {
-    setIsLoadingHistory(true);
+  const fetchHistory = async (pageNum: number, reset: boolean = false) => {
+    if (reset) setIsLoadingHistory(true);
     try {
+      const from = pageNum * HISTORY_PAGE_SIZE;
+      const to = from + HISTORY_PAGE_SIZE - 1;
+      
       const { data, error } = await supabase
         .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, title, created_at, category, cover_image_url, audio_url, content')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+        
       if (error) throw error;
-      setArticles(data || []);
+      
+      if (data) {
+        if (data.length < HISTORY_PAGE_SIZE) setHasMoreHistory(false);
+        else setHasMoreHistory(true);
+        
+        if (reset) {
+          setArticles(data);
+        } else {
+          setArticles(prev => {
+            const newIds = data.map(d => d.id);
+            const filteredPrev = prev.filter(p => !newIds.includes(p.id));
+            return [...filteredPrev, ...data];
+          });
+        }
+      }
     } catch (err) {
       console.error('Error fetching history:', err);
     } finally {
-      setIsLoadingHistory(false);
+      if (reset) setIsLoadingHistory(false);
     }
+  };
+
+  const handleLoadMoreHistory = async () => {
+    setIsFetchingMoreHistory(true);
+    const nextPage = historyPage + 1;
+    await fetchHistory(nextPage, false);
+    setHistoryPage(nextPage);
+    setIsFetchingMoreHistory(false);
   };
 
   useEffect(() => {
     if (activeTab === 'history') {
-      fetchHistory();
+      setHistoryPage(0);
+      setHasMoreHistory(true);
+      fetchHistory(0, true);
     }
   }, [activeTab]);
 
@@ -847,6 +881,26 @@ export function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              
+              {hasMoreHistory && articles.length > 0 && (
+                <div style={{ textAlign: 'center', marginTop: '30px', paddingBottom: '30px' }}>
+                  <button 
+                    onClick={handleLoadMoreHistory}
+                    disabled={isFetchingMoreHistory}
+                    style={{
+                      padding: '10px 25px',
+                      borderRadius: '25px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-color)',
+                      cursor: isFetchingMoreHistory ? 'not-allowed' : 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    {isFetchingMoreHistory ? 'Loading...' : 'Load More'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -9,6 +9,7 @@ import { PenTool, List, Calendar, Folder, Trash2, Edit3, Image as ImageIcon, Fil
 import { ConfirmModal } from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
+import { extractPositionValue, extractBaseUrl } from '../utils/imagePosition';
 
 export function AdminDashboard() {
   const { profile, loading } = useAuth();
@@ -19,7 +20,12 @@ export function AdminDashboard() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePosition, setCoverImagePosition] = useState(20);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
   const [audioUrl, setAudioUrl] = useState('');
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editorError, setEditorError] = useState('');
@@ -46,7 +52,10 @@ export function AdminDashboard() {
     const savedContent = localStorage.getItem('draft_content');
     if (savedTitle && !editingId) setTitle(savedTitle);
     if (savedCategory && !editingId) setCategory(savedCategory);
-    if (savedCoverImage && !editingId) setCoverImage(savedCoverImage);
+    if (savedCoverImage && !editingId) {
+      setCoverImage(savedCoverImage);
+      setCoverImagePosition(extractPositionValue(savedCoverImage));
+    }
     if (savedAudio && !editingId) setAudioUrl(savedAudio);
     if (savedContent && !editingId) setContent(savedContent);
   }, [editingId]);
@@ -56,11 +65,12 @@ export function AdminDashboard() {
     if (!editingId) {
       localStorage.setItem('draft_title', title);
       localStorage.setItem('draft_category', category);
-      localStorage.setItem('draft_cover', coverImage);
+      const finalDraftCover = coverImage ? (coverImage.includes('#pos=') ? coverImage.replace(/#pos=\d+/, `#pos=${Math.round(coverImagePosition)}`) : `${coverImage}#pos=${Math.round(coverImagePosition)}`) : '';
+      localStorage.setItem('draft_cover', finalDraftCover);
       localStorage.setItem('draft_audio', audioUrl);
       localStorage.setItem('draft_content', content);
     }
-  }, [title, content, category, coverImage, audioUrl, editingId]);
+  }, [title, content, category, coverImage, coverImagePosition, audioUrl, editingId]);
 
   // Fetch History
   const fetchHistory = async () => {
@@ -109,6 +119,63 @@ export function AdminDashboard() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    let clientY;
+    if ('touches' in e) {
+      clientY = e.touches[0].clientY;
+    } else {
+      clientY = e.clientY;
+    }
+    setStartY(clientY);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      
+      let clientY;
+      if ('touches' in e) {
+        clientY = e.touches[0].clientY;
+      } else {
+        clientY = e.clientY;
+      }
+      
+      const deltaY = clientY - startY;
+      const deltaPercent = deltaY / 3;
+      
+      setCoverImagePosition(prev => {
+        let newPos = prev - deltaPercent;
+        if (newPos < 0) newPos = 0;
+        if (newPos > 100) newPos = 100;
+        return newPos;
+      });
+      
+      setStartY(clientY);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove, { passive: false });
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleMouseMove, { passive: false });
+      window.addEventListener('touchend', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isDragging, startY]);
+
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -119,34 +186,17 @@ export function AdminDashboard() {
       return;
     }
 
-    setIsUploadingImage(true);
     setEditorError('');
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('cover_images')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data } = supabase.storage
-        .from('cover_images')
-        .getPublicUrl(filePath);
-
-      setCoverImage(data.publicUrl);
-    } catch (err: any) {
-      console.error('Error uploading image:', err);
-      setEditorError('Failed to upload image. Did you create the bucket?');
-    } finally {
-      setIsUploadingImage(false);
-      if (coverImageInputRef.current) coverImageInputRef.current.value = '';
+    if (coverImage && coverImage.startsWith('blob:')) {
+      URL.revokeObjectURL(coverImage);
     }
+    
+    setCoverImageFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setCoverImage(objectUrl);
+    setCoverImagePosition(50); // Reset position to center for new images
+    
+    if (coverImageInputRef.current) coverImageInputRef.current.value = '';
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,32 +208,16 @@ export function AdminDashboard() {
       return;
     }
 
-    setIsUploadingAudio(true);
     setEditorError('');
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `audio_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('cover_images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('cover_images')
-        .getPublicUrl(filePath);
-
-      setAudioUrl(data.publicUrl);
-    } catch (err: any) {
-      console.error('Error uploading audio:', err);
-      setEditorError('Failed to upload audio.');
-    } finally {
-      setIsUploadingAudio(false);
-      if (audioInputRef.current) audioInputRef.current.value = '';
+    if (audioUrl && audioUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(audioUrl);
     }
+
+    setAudioFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setAudioUrl(objectUrl);
+    
+    if (audioInputRef.current) audioInputRef.current.value = '';
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -197,11 +231,38 @@ export function AdminDashboard() {
     setEditorError('');
 
     try {
+      let finalCoverImageUrl = extractBaseUrl(coverImage);
+      if (coverImageFile) {
+        setIsUploadingImage(true);
+        const fileExt = coverImageFile.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('cover_images').upload(fileName, coverImageFile);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('cover_images').getPublicUrl(fileName);
+        finalCoverImageUrl = data.publicUrl;
+        setIsUploadingImage(false);
+      }
+
+      let finalAudioUrl = audioUrl;
+      if (audioFile) {
+        setIsUploadingAudio(true);
+        const fileExt = audioFile.name.split('.').pop();
+        const fileName = `audio_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('cover_images').upload(fileName, audioFile);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('cover_images').getPublicUrl(fileName);
+        finalAudioUrl = data.publicUrl;
+        setIsUploadingAudio(false);
+      }
+
+      const dbCover = finalCoverImageUrl ? `${finalCoverImageUrl}#pos=${Math.round(coverImagePosition)}` : null;
+      const dbAudio = finalAudioUrl || null;
+
       if (editingId) {
         // Update
         const { error } = await supabase
           .from('articles')
-          .update({ title, content, category, cover_image_url: coverImage || null, audio_url: audioUrl || null })
+          .update({ title, content, category, cover_image_url: dbCover, audio_url: dbAudio })
           .eq('id', editingId);
         if (error) throw error;
         
@@ -210,7 +271,10 @@ export function AdminDashboard() {
         setTitle('');
         setCategory('');
         setCoverImage('');
+        setCoverImageFile(null);
+        setCoverImagePosition(20);
         setAudioUrl('');
+        setAudioFile(null);
         setContent('');
         toast.success('Article updated successfully!');
         setActiveTab('history');
@@ -218,7 +282,7 @@ export function AdminDashboard() {
         // Insert
         const { error } = await supabase
           .from('articles')
-          .insert([{ title, content, category, cover_image_url: coverImage || null, audio_url: audioUrl || null }]);
+          .insert([{ title, content, category, cover_image_url: dbCover, audio_url: dbAudio }]);
         if (error) throw error;
         
         localStorage.removeItem('draft_title');
@@ -226,6 +290,10 @@ export function AdminDashboard() {
         localStorage.removeItem('draft_cover');
         localStorage.removeItem('draft_audio');
         localStorage.removeItem('draft_content');
+        
+        setCoverImageFile(null);
+        setCoverImagePosition(20);
+        setAudioFile(null);
         toast.success('Article published successfully!');
         navigate('/', { viewTransition: true });
       }
@@ -240,11 +308,17 @@ export function AdminDashboard() {
 
   // Handlers for History
   const handleEdit = (article: Article) => {
+    if (coverImage && coverImage.startsWith('blob:')) URL.revokeObjectURL(coverImage);
+    if (audioUrl && audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
+    
     setEditingId(article.id);
     setTitle(article.title);
     setCategory(article.category || '');
     setCoverImage(article.cover_image_url || '');
+    setCoverImagePosition(extractPositionValue(article.cover_image_url));
+    setCoverImageFile(null);
     setAudioUrl(article.audio_url || '');
+    setAudioFile(null);
     setContent(article.content);
     setActiveTab('write');
   };
@@ -270,23 +344,51 @@ export function AdminDashboard() {
     }
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setTitle('');
-    setCategory('');
-    setCoverImage('');
-    setAudioUrl('');
-    setContent('');
-    const savedTitle = localStorage.getItem('draft_title');
-    const savedCategory = localStorage.getItem('draft_category');
-    const savedCoverImage = localStorage.getItem('draft_cover');
-    const savedAudio = localStorage.getItem('draft_audio');
-    const savedContent = localStorage.getItem('draft_content');
-    if (savedTitle) setTitle(savedTitle);
-    if (savedCategory) setCategory(savedCategory);
-    if (savedCoverImage) setCoverImage(savedCoverImage);
-    if (savedAudio) setAudioUrl(savedAudio);
-    if (savedContent) setContent(savedContent);
+  const handleCancel = () => {
+    if (coverImage && coverImage.startsWith('blob:')) URL.revokeObjectURL(coverImage);
+    if (audioUrl && audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
+
+    if (editingId) {
+      setEditingId(null);
+      setTitle('');
+      setCategory('');
+      setCoverImage('');
+      setCoverImagePosition(20);
+      setCoverImageFile(null);
+      setAudioUrl('');
+      setAudioFile(null);
+      setContent('');
+      
+      const savedTitle = localStorage.getItem('draft_title');
+      const savedCategory = localStorage.getItem('draft_category');
+      const savedCoverImage = localStorage.getItem('draft_cover');
+      const savedAudio = localStorage.getItem('draft_audio');
+      const savedContent = localStorage.getItem('draft_content');
+      if (savedTitle) setTitle(savedTitle);
+      if (savedCategory) setCategory(savedCategory);
+      if (savedCoverImage) {
+        setCoverImage(savedCoverImage);
+        setCoverImagePosition(extractPositionValue(savedCoverImage));
+      }
+      if (savedAudio) setAudioUrl(savedAudio);
+      if (savedContent) setContent(savedContent);
+    } else {
+      setTitle('');
+      setCategory('');
+      setCoverImage('');
+      setCoverImagePosition(20);
+      setCoverImageFile(null);
+      setAudioUrl('');
+      setAudioFile(null);
+      setContent('');
+      
+      localStorage.removeItem('draft_title');
+      localStorage.removeItem('draft_category');
+      localStorage.removeItem('draft_cover');
+      localStorage.removeItem('draft_audio');
+      localStorage.removeItem('draft_content');
+      toast.success('Draft cleared');
+    }
   };
 
   if (loading) return <div className="container"><p>Loading...</p></div>;
@@ -385,8 +487,11 @@ export function AdminDashboard() {
                   type="text"
                   className="form-control"
                   placeholder="Paste URL or click Upload"
-                  value={coverImage}
-                  onChange={(e) => setCoverImage(e.target.value)}
+                  value={coverImageFile ? 'Local file selected...' : coverImage}
+                  onChange={(e) => {
+                    setCoverImage(e.target.value);
+                    setCoverImageFile(null);
+                  }}
                   disabled={isSubmitting || isUploadingImage}
                   style={{ flexGrow: 1, padding: '15px', borderRadius: '12px' }}
                 />
@@ -420,8 +525,51 @@ export function AdminDashboard() {
                 </button>
               </div>
               {coverImage && (
-                <div style={{ marginTop: '15px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', height: '200px' }}>
-                  <img src={coverImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div>
+                  <div 
+                    style={{ 
+                      marginTop: '15px', 
+                      borderRadius: '12px', 
+                      overflow: 'hidden', 
+                      border: '1px solid var(--border-color)', 
+                      height: '200px',
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      position: 'relative'
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onTouchStart={handleMouseDown}
+                  >
+                    <img 
+                      src={extractBaseUrl(coverImage)} 
+                      alt="Preview" 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        objectPosition: `center ${coverImagePosition}%`,
+                        userSelect: 'none',
+                        pointerEvents: 'none'
+                      }} 
+                    />
+                    {!isDragging && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '20px',
+                        fontSize: '0.8rem',
+                        pointerEvents: 'none'
+                      }}>
+                        Drag to reposition
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-light)', textAlign: 'center' }}>
+                    Position: {Math.round(coverImagePosition)}%
+                  </div>
                 </div>
               )}
             </div>
@@ -435,8 +583,11 @@ export function AdminDashboard() {
                   type="text"
                   className="form-control"
                   placeholder="Paste URL or click Upload"
-                  value={audioUrl}
-                  onChange={(e) => setAudioUrl(e.target.value)}
+                  value={audioFile ? 'Local file selected...' : audioUrl}
+                  onChange={(e) => {
+                    setAudioUrl(e.target.value);
+                    setAudioFile(null);
+                  }}
                   disabled={isSubmitting || isUploadingAudio}
                   style={{ flexGrow: 1, padding: '15px', borderRadius: '12px' }}
                 />
@@ -573,24 +724,22 @@ export function AdminDashboard() {
                 <Save size={20} />
                 {isSubmitting ? 'Saving...' : (editingId ? 'Update Article' : 'Publish Article')}
               </button>
-              {editingId && (
-                <button 
-                  type="button" 
-                  onClick={cancelEdit} 
-                  style={{ 
-                    padding: '16px 30px', 
-                    borderRadius: '12px', 
-                    background: 'transparent', 
-                    color: 'var(--text-color)', 
-                    border: '1px solid var(--border-color)',
-                    fontSize: '1.1rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
+              <button 
+                type="button" 
+                onClick={handleCancel} 
+                style={{ 
+                  padding: '16px 30px', 
+                  borderRadius: '12px', 
+                  background: 'transparent', 
+                  color: 'var(--text-color)', 
+                  border: '1px solid var(--border-color)',
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </form>
         </div>

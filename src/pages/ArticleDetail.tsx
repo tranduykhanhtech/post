@@ -11,6 +11,7 @@ import { Comments } from '../components/Comments';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import { ReadingPreferences } from '../components/ReadingPreferences';
+import { getCoverPosition, extractBaseUrl } from '../utils/imagePosition';
 
 export function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -99,7 +100,7 @@ export function ArticleDetail() {
       <Helmet>
         <title>{article.title} - Gecko Space</title>
         <meta name="description" content={article.content.substring(0, 160).replace(/<[^>]*>?/gm, '') + '...'} />
-        {article.cover_image_url && <meta property="og:image" content={article.cover_image_url} />}
+        {article.cover_image_url && <meta property="og:image" content={extractBaseUrl(article.cover_image_url)} />}
       </Helmet>
       {/* Gecko Scroll Progress Bar */}
       <div 
@@ -163,13 +164,13 @@ export function ArticleDetail() {
         </div>
 
         {article.cover_image_url && (
-          <div style={{ marginBottom: '30px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-            <img 
-              src={article.cover_image_url} 
-              alt={article.title} 
-              style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', display: 'block' }} 
-            />
-          </div>
+            <div style={{ marginBottom: '30px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <img 
+                src={extractBaseUrl(article.cover_image_url)} 
+                alt={article.title} 
+                style={{ width: '100%', maxHeight: '450px', objectFit: 'cover', objectPosition: getCoverPosition(article.cover_image_url), display: 'block' }} 
+              />
+            </div>
         )}
         
         {article.audio_url && (

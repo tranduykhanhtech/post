@@ -6,6 +6,7 @@ import { stripHtml } from '../utils/html';
 import { Sparkles, Clock, Bookmark } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
+import { getCoverPosition, extractBaseUrl } from '../utils/imagePosition';
 
 export function Home() {
   const { user } = useAuth();
@@ -196,7 +197,7 @@ export function Home() {
             <article key={article.id} className="article-card" style={{ padding: article.cover_image_url ? 0 : '24px', overflow: 'hidden' }}>
               {article.cover_image_url && (
                 <Link viewTransition to={`/article/${article.id}`}>
-                  <img src={article.cover_image_url} alt={article.title} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+                  <img src={extractBaseUrl(article.cover_image_url)} alt={article.title} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', objectPosition: getCoverPosition(article.cover_image_url) }} />
                 </Link>
               )}
               <div style={{ padding: article.cover_image_url ? '20px' : 0 }}>

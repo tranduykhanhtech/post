@@ -171,6 +171,15 @@ export function ArticleDetail() {
             />
           </div>
         )}
+        
+        {article.audio_url && (
+          <div style={{ marginBottom: '30px', padding: '15px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🎧 Listen to this article
+            </h3>
+            <audio controls src={article.audio_url} style={{ width: '100%' }} />
+          </div>
+        )}
         <div className="utility-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginTop: '30px', marginBottom: '20px' }}>
           <ReadingPreferences 
             fontSize={fontSize} setFontSize={setFontSize}

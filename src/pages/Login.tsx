@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { SwipeButton } from '../components/SwipeButton';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -9,8 +10,8 @@ export function Login() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
 
@@ -39,7 +40,7 @@ export function Login() {
         </div>
       )}
 
-      <form onSubmit={handleLogin} style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+      <form onSubmit={handleLogin} style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
         <div className="form-group">
           <label htmlFor="email">Email</label>
           <input
@@ -62,9 +63,11 @@ export function Login() {
             required
           />
         </div>
-        <button type="submit" className="btn" style={{ width: '100%', marginTop: '10px' }} disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+        <SwipeButton 
+          text="Slide to Login" 
+          onSwipeSuccess={handleLogin} 
+          loading={loading} 
+        />
       </form>
       
       <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-light)' }}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { SwipeButton } from '../components/SwipeButton';
 
 export function Register() {
   const [email, setEmail] = useState('');
@@ -11,8 +12,8 @@ export function Register() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
 
@@ -59,7 +60,7 @@ export function Register() {
         </div>
       )}
 
-      <form onSubmit={handleRegister} style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+      <form onSubmit={handleRegister} style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
         <div className="form-group">
           <label htmlFor="displayName">Display Name</label>
           <input
@@ -95,9 +96,11 @@ export function Register() {
             minLength={6}
           />
         </div>
-        <button type="submit" className="btn" style={{ width: '100%', marginTop: '10px' }} disabled={loading || success}>
-          {loading ? 'Creating account...' : 'Register'}
-        </button>
+        <SwipeButton 
+          text="Slide to Register" 
+          onSwipeSuccess={handleRegister} 
+          loading={loading || success} 
+        />
       </form>
       
       <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-light)' }}>

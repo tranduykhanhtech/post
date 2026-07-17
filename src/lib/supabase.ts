@@ -14,4 +14,5 @@ export type Article = {
   category?: string;
   views?: number;
   cover_image_url?: string;
+  audio_url?: string;
 };

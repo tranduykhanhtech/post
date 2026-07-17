@@ -5,7 +5,7 @@ import * as mammoth from 'mammoth';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { useAuth } from '../context/AuthContext';
-import { PenTool, List, Calendar, Folder, Trash2, Edit3, Image as ImageIcon, FileText, UploadCloud, Save } from 'lucide-react';
+import { PenTool, List, Calendar, Folder, Trash2, Edit3, Image as ImageIcon, FileText, UploadCloud, Save, Headphones } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
@@ -19,12 +19,15 @@ export function AdminDashboard() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   // History State
   const [articles, setArticles] = useState<Article[]>([]);
@@ -39,10 +42,12 @@ export function AdminDashboard() {
     const savedTitle = localStorage.getItem('draft_title');
     const savedCategory = localStorage.getItem('draft_category');
     const savedCoverImage = localStorage.getItem('draft_cover');
+    const savedAudio = localStorage.getItem('draft_audio');
     const savedContent = localStorage.getItem('draft_content');
     if (savedTitle && !editingId) setTitle(savedTitle);
     if (savedCategory && !editingId) setCategory(savedCategory);
     if (savedCoverImage && !editingId) setCoverImage(savedCoverImage);
+    if (savedAudio && !editingId) setAudioUrl(savedAudio);
     if (savedContent && !editingId) setContent(savedContent);
   }, [editingId]);
 
@@ -52,9 +57,10 @@ export function AdminDashboard() {
       localStorage.setItem('draft_title', title);
       localStorage.setItem('draft_category', category);
       localStorage.setItem('draft_cover', coverImage);
+      localStorage.setItem('draft_audio', audioUrl);
       localStorage.setItem('draft_content', content);
     }
-  }, [title, content, category, coverImage, editingId]);
+  }, [title, content, category, coverImage, audioUrl, editingId]);
 
   // Fetch History
   const fetchHistory = async () => {
@@ -143,6 +149,43 @@ export function AdminDashboard() {
     }
   };
 
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      setEditorError('Please upload a valid audio file.');
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    setEditorError('');
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `audio_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cover_images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('cover_images')
+        .getPublicUrl(filePath);
+
+      setAudioUrl(data.publicUrl);
+    } catch (err: any) {
+      console.error('Error uploading audio:', err);
+      setEditorError('Failed to upload audio.');
+    } finally {
+      setIsUploadingAudio(false);
+      if (audioInputRef.current) audioInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
@@ -158,7 +201,7 @@ export function AdminDashboard() {
         // Update
         const { error } = await supabase
           .from('articles')
-          .update({ title, content, category, cover_image_url: coverImage || null })
+          .update({ title, content, category, cover_image_url: coverImage || null, audio_url: audioUrl || null })
           .eq('id', editingId);
         if (error) throw error;
         
@@ -167,6 +210,7 @@ export function AdminDashboard() {
         setTitle('');
         setCategory('');
         setCoverImage('');
+        setAudioUrl('');
         setContent('');
         toast.success('Article updated successfully!');
         setActiveTab('history');
@@ -174,12 +218,13 @@ export function AdminDashboard() {
         // Insert
         const { error } = await supabase
           .from('articles')
-          .insert([{ title, content, category, cover_image_url: coverImage || null }]);
+          .insert([{ title, content, category, cover_image_url: coverImage || null, audio_url: audioUrl || null }]);
         if (error) throw error;
         
         localStorage.removeItem('draft_title');
         localStorage.removeItem('draft_category');
         localStorage.removeItem('draft_cover');
+        localStorage.removeItem('draft_audio');
         localStorage.removeItem('draft_content');
         toast.success('Article published successfully!');
         navigate('/', { viewTransition: true });
@@ -199,6 +244,7 @@ export function AdminDashboard() {
     setTitle(article.title);
     setCategory(article.category || '');
     setCoverImage(article.cover_image_url || '');
+    setAudioUrl(article.audio_url || '');
     setContent(article.content);
     setActiveTab('write');
   };
@@ -229,14 +275,17 @@ export function AdminDashboard() {
     setTitle('');
     setCategory('');
     setCoverImage('');
+    setAudioUrl('');
     setContent('');
     const savedTitle = localStorage.getItem('draft_title');
     const savedCategory = localStorage.getItem('draft_category');
     const savedCoverImage = localStorage.getItem('draft_cover');
+    const savedAudio = localStorage.getItem('draft_audio');
     const savedContent = localStorage.getItem('draft_content');
     if (savedTitle) setTitle(savedTitle);
     if (savedCategory) setCategory(savedCategory);
     if (savedCoverImage) setCoverImage(savedCoverImage);
+    if (savedAudio) setAudioUrl(savedAudio);
     if (savedContent) setContent(savedContent);
   };
 
@@ -373,6 +422,56 @@ export function AdminDashboard() {
               {coverImage && (
                 <div style={{ marginTop: '15px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', height: '200px' }}>
                   <img src={coverImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '1.1rem', marginBottom: '10px' }}>
+                <Headphones size={18} /> Audio File (optional)
+              </label>
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Paste URL or click Upload"
+                  value={audioUrl}
+                  onChange={(e) => setAudioUrl(e.target.value)}
+                  disabled={isSubmitting || isUploadingAudio}
+                  style={{ flexGrow: 1, padding: '15px', borderRadius: '12px' }}
+                />
+                <input 
+                  type="file" 
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  ref={audioInputRef}
+                  onChange={handleAudioUpload}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => audioInputRef.current?.click()}
+                  disabled={isSubmitting || isUploadingAudio}
+                  style={{ 
+                    whiteSpace: 'nowrap', 
+                    padding: '15px 25px', 
+                    borderRadius: '12px', 
+                    border: '1px solid var(--border-color)', 
+                    background: 'var(--bg-card)', 
+                    color: 'var(--text-color)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <UploadCloud size={18} /> {isUploadingAudio ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+              {audioUrl && (
+                <div style={{ marginTop: '15px' }}>
+                  <audio controls src={audioUrl} style={{ width: '100%' }} />
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, type Article } from '../lib/supabase';
 import 'react-quill-new/dist/quill.snow.css'; // Include quill styles for rendering
@@ -12,12 +12,14 @@ import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import { ReadingPreferences } from '../components/ReadingPreferences';
 import { getCoverPosition, extractBaseUrl } from '../utils/imagePosition';
+import { Eye } from 'lucide-react';
 
 export function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const hasIncrementedView = useRef(false);
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif'>('sans');
   const [zenMode, setZenMode] = useState(false);
@@ -63,6 +65,28 @@ export function ArticleDetail() {
         if (error) throw error;
         if (data) {
           setArticle(data);
+          
+          // Increment view count only if not already viewed in this browser
+          // Also prevent React 18 Strict Mode double-fire using a ref
+          const viewedArticles = JSON.parse(localStorage.getItem('viewed_articles') || '[]');
+          if (!viewedArticles.includes(id) && !hasIncrementedView.current) {
+            hasIncrementedView.current = true;
+            
+            // Mark as viewed immediately to prevent race conditions
+            viewedArticles.push(id);
+            localStorage.setItem('viewed_articles', JSON.stringify(viewedArticles));
+            
+            supabase.rpc('increment_views', { article_id: id }).then(({ error }) => {
+              if (error) {
+                console.error('Error incrementing views:', error);
+                // Revert if failed
+                const currentViewed = JSON.parse(localStorage.getItem('viewed_articles') || '[]');
+                localStorage.setItem('viewed_articles', JSON.stringify(currentViewed.filter((vid: string) => vid !== id)));
+              } else {
+                setArticle(prev => prev ? { ...prev, views: (prev.views || 0) + 1 } : prev);
+              }
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching article:', error);
@@ -145,22 +169,26 @@ export function ArticleDetail() {
       </div>
       <article>
         <h1 className="article-title">{article.title}</h1>
-        <div className="article-meta">
+        <div className="article-meta" style={{ display: 'flex', alignItems: 'center' }}>
           {article.category && (
             <span style={{ 
               backgroundColor: 'var(--accent-color)', color: 'white', 
-              padding: '2px 10px', borderRadius: '12px', marginRight: '10px', fontSize: '0.85rem' 
+              padding: '2px 8px', borderRadius: '12px', marginRight: '10px', fontSize: '0.8rem' 
             }}>
               {article.category}
             </span>
           )}
-          Published on {new Date(article.created_at).toLocaleDateString('en-US', {
+          {new Date(article.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
           })}
           <span style={{ margin: '0 8px' }}>•</span>
           {calculateReadTime(article.content)} min read
+          <span style={{ margin: '0 8px' }}>•</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={`${article.views || 0} views`}>
+            <Eye size={16} /> {article.views || 0}
+          </span>
         </div>
 
         {article.cover_image_url && (

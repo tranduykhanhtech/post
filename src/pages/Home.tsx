@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { supabase, type Article } from '../lib/supabase';
 import { calculateReadTime } from '../utils/readTime';
 import { stripHtml } from '../utils/html';
-import { Sparkles, Clock, Bookmark, Loader2 } from 'lucide-react';
+import { Sparkles, Clock, Bookmark, Loader2, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { getCoverPosition, extractBaseUrl } from '../utils/imagePosition';
@@ -223,8 +223,12 @@ export function Home() {
         </div>
       ) : (
         <div className="article-list">
-          {articles.map((article) => (
-            <article key={article.id} className="article-card" style={{ padding: article.cover_image_url ? 0 : '24px', overflow: 'hidden' }}>
+          {articles.map((article, index) => (
+            <article 
+              key={article.id} 
+              className={`article-card fade-in-up ${index === 0 && !searchQuery && !selectedCategory ? 'hero-article' : ''}`} 
+              style={{ padding: article.cover_image_url ? 0 : '24px', animationDelay: `${index * 0.1}s` }}
+            >
               {article.cover_image_url && (
                 <Link viewTransition to={`/article/${article.id}`}>
                   <img src={extractBaseUrl(article.cover_image_url)} alt={article.title} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', objectPosition: getCoverPosition(article.cover_image_url) }} />
@@ -234,7 +238,7 @@ export function Home() {
                 <h2 className="article-card-title" style={{ marginTop: 0 }}>
                   <Link viewTransition to={`/article/${article.id}`}>{article.title}</Link>
                 </h2>
-              <div className="article-card-meta">
+              <div className="article-card-meta" style={{ display: 'flex', alignItems: 'center' }}>
                 {article.category && (
                   <span style={{ 
                     backgroundColor: 'var(--accent-color)', color: 'white', 
@@ -250,6 +254,10 @@ export function Home() {
                 })}
                 <span style={{ margin: '0 8px' }}>•</span>
                 {calculateReadTime(article.content)} min read
+                <span style={{ margin: '0 8px' }}>•</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={`${article.views || 0} views`}>
+                  <Eye size={14} /> {article.views || 0}
+                </span>
               </div>
                 <p className="article-card-excerpt">
                   {article.excerpt || stripHtml(article.content.replace(/&nbsp;/g, ' '))}

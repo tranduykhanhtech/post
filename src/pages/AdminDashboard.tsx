@@ -5,7 +5,7 @@ import * as mammoth from 'mammoth';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { useAuth } from '../context/AuthContext';
-import { PenTool, List, Calendar, Folder, Trash2, Edit3, Image as ImageIcon, FileText, UploadCloud, Save, Headphones } from 'lucide-react';
+import { PenTool, List, Calendar, Folder, Trash2, Edit3, Image as ImageIcon, FileText, UploadCloud, Save, Headphones, Eye } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
@@ -86,7 +86,7 @@ export function AdminDashboard() {
       
       const { data, error } = await supabase
         .from('articles')
-        .select('id, title, created_at, category, cover_image_url, audio_url, content')
+        .select('id, title, created_at, category, cover_image_url, audio_url, content, views')
         .order('created_at', { ascending: false })
         .range(from, to);
         
@@ -837,6 +837,10 @@ export function AdminDashboard() {
                           {article.category}
                         </span>
                       )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title={`${article.views || 0} views`}>
+                        <Eye size={14} />
+                        {article.views || 0}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
